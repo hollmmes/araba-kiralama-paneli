@@ -1,0 +1,233 @@
+import sys
+import mysql.connector
+from PySide6.QtGui import Qt
+from PySide6.QtWidgets import QApplication, QMainWindow, QTableWidgetItem, QMessageBox
+from ui_form import Ui_anapencere
+from ui_formPerson import Ui_addPerson
+from ui_formBul import Ui_Bul
+
+
+class anapencere(QMainWindow):
+    def __init__(self, parent=None):
+        super().__init__()
+        self.ui = Ui_anapencere()
+        self.ui.setupUi(self)
+        self.ui.musteribilgi.clicked.connect(self.openPerson)
+        self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
+        self.sqlBaglan()
+        self.dbCheck()
+        self.tableCheck()
+
+
+    def sqlBaglan(self):
+        self.dbConn=mysql.connector.connect(
+        host="localhost",
+        user="root",
+        password="deneme")
+
+    def dbCheck(self):
+       if(self.dbConn.is_connected):
+           self.mycursor=self.dbConn.cursor()
+       self.target_db="arackiralama"
+       try:
+           self.mycursor.execute(f"USE {self.target_db}")
+       except:
+           self.mycursor.execute(f"CREATE DATABASE {self.target_db}")
+
+    def tableCheck(self):
+        self.mycursor.execute(f"USE {self.target_db}")
+        self.mycursor.execute("SHOW tables")
+        dbTable = [dbTbl[0] for dbTbl in self.mycursor.fetchall()]
+        if dbTable == []:
+            self.mycursor.execute("""
+                CREATE TABLE aracKiralama(
+                    userID int(10) PRIMARY KEY AUTO_INCREMENT,
+                    ad varchar(50) NOT NULL,
+                    soyad varchar(50) NOT NULL,
+                    tcNO varchar(11) NOT NULL,
+                    telNO varchar(15) NOT NULL,
+                    dTarihi varchar(15) NOT NULL,
+                    adres varchar(50) NOT NULL,
+                    meslek varchar(50) NOT NULL,
+                    ehliyetSınıfı varchar(50) NOT NULL,
+                    medeniDurumu varchar(50) NOT NULL,
+                    egitimDurumu varchar(50) NOT NULL
+                );
+            """)
+    def openPerson(self):
+       self.w = addPerson(self, self.mycursor)
+       self.w.show()
+
+    def closeEvent(self,event):
+        self.mycursor.close()
+        self.dbConn.close()
+
+class addPerson(QMainWindow):
+    def __init__(self, mainWindow, mycursor, parent=None):
+        super().__init__(parent)
+        self.ui = Ui_addPerson()
+        self.ui.setupUi(self)
+        self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
+        self.status_Bar=self.statusBar()
+        self.mainWindow=mainWindow
+        self.mycursor = mycursor
+        self.ui.tableWidget.setHorizontalHeaderLabels(["userID","Ad","Soyad","telno","dTarihi","adres","meslek","ehliyetSınıf","egitimDurumu","tcno","medeniDurumu"])
+        self.ui.tableWidget.setColumnWidth(0,90)
+        self.ui.tableWidget.setColumnWidth(1,90)
+        self.ui.tableWidget.setColumnWidth(2,90)
+        self.ui.tableWidget.setColumnWidth(3,100)
+        self.ui.tableWidget.setColumnWidth(4,150)
+        self.ui.tableWidget.setColumnWidth(5,140)
+        self.ui.tableWidget.setColumnWidth(6,100)
+        self.ui.tableWidget.setColumnWidth(7,100)
+        self.ui.tableWidget.setColumnWidth(8,100)
+        self.ui.tableWidget.setColumnWidth(9,100)
+        self.ui.tableWidget.setColumnWidth(10,100)
+        self.ui.pushButton_yeni.clicked.connect(self.yeniFonk)
+        self.ui.pushButton_sil.clicked.connect(self.silFonk)
+        self.ui.pushButton_update.clicked.connect(self.updateFonk)
+        self.ui.pushButton_kaydet.clicked.connect(self.kaydetFonk)
+        self.ui.tableWidget.cellDoubleClicked.connect(self.getInfoFonk)
+        self.ui.tableWidget.cellChanged.connect(self.cellChangedFonk)
+
+    def openBul(self):
+       self.m = Bul(self)
+       self.m.show()
+
+    def yeniFonk(self):
+        self.ui.lineEdit_id.setText("")
+        self.ui.lineEdit_ad.setText("")
+        self.ui.lineEdit_soyad.setText("")
+        self.ui.lineEdit_telno.setText("")
+        self.ui.lineEdit_adres.setText("")
+        self.ui.lineEdit_dTarihi.setText("")
+        self.ui.lineEdit_tcno.setText("")
+        self.ui.lineEdit_meslek.setText("")
+        self.ui.lineEdit_ehliyet.setText("")
+        self.ui.lineEdit_medeni.setText("")
+        self.ui.lineEdit_egitim.setText("")
+        self.ui.pushButton_sil.setEnabled(False)
+        self.ui.pushButton_update.setEnabled(False)
+
+    def silFonk(self):
+        result = self.mesaj("Bir kaydı silmek üzeresiniz.Emin misiniz?")
+        if result == QMessageBox.Yes:
+            id = int(self.ui.lineEdit_id.text())
+            self.mycursor.execute(f"""
+                DELETE FROM '{self.mainWindow.target_db}'.'aracKiralama'
+                WHERE ('userID' = '{id}');
+            """)
+
+            self.ui.pushButton_sil.setEnabled(False)
+            self.mainWindow.dbConn.commit()
+        else:
+            self.status_Bar.showMessage("Silme iptal edildi", 5000)
+
+    def updateFonk(self):
+       userID = self.ui.lineEdit_id.text()
+       ad = self.ui.lineEdit_ad.text()
+       soyad = self.ui.lineEdit_soyad.text()
+       telno = self.ui.lineEdit_telno.text()
+       adres = self.ui.lineEdit_adres.text()
+       tcno = self.ui.lineEdit_tcno.text()
+       dTarihi = self.ui.lineEdit_dTarihi.text()
+       ehliyet = self.ui.lineEdit_ehliyet.text()
+       meslek = self.ui.lineEdit_meslek.text()
+       medeni = self.ui.lineEdit_medeni.text()
+       egitim = self.ui.lineEdit_egitim.text()
+
+       self.mycursor.execute(f"""
+            UPDATE `{self.mainWindow.target_db}`.`aracKiralama` SET
+            `ad`='{ad}',
+            `soyad`='{soyad}',
+            `telno`='{telno}',
+            `adres`='{adres}',
+            `tcno`='{tcno}',
+            `dTarihi`='{dTarihi}',
+            `ehliyetSınıfı`='{ehliyet}',
+            `meslek`='{meslek}',
+            `medeniDurumu`='{medeni}',
+            `egitimDurumu`='{egitim}'
+           WHERE `userID`='{userID}'
+        """)
+
+
+
+
+
+
+    def kaydetFonk(self):
+        if(self.ui.lineEdit_id.text()!=""):
+            result=self.mesaj("Bu kayıt mevcut.Güncelleme yapmak istiyor musunuz?")
+            if(result==QMessageBox.Yes):
+                self.updateFonk()
+            else:
+                self.status_Bar.showMessage("Kaydetme iptal",5000)
+        else:
+            self.sql = """
+                INSERT INTO aracKiralama(id, ad, soyad, telno, adres, tcno, dTarihi, ehliyetSınıfı, meslek, medeniDurumu, egitimDurumu)
+                VALUES (null, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """
+
+            self.veri = (
+                self.ui.lineEdit_ad.text(),
+                self.ui.lineEdit_soyad.text(),
+                self.ui.lineEdit_telno.text(),
+                self.ui.lineEdit_adres.text(),
+                self.ui.lineEdit_tcno.text(),
+                self.ui.lineEdit_dTarihi.text(),
+                self.ui.lineEdit_ehliyet.text(),
+                self.ui.lineEdit_meslek.text(),
+                self.ui.lineEdit_medeni.text(),
+                self.ui.lineEdit_egitim.text()
+            )
+            self.mainWindow.mycursor.execute(self.sql,self.veri)
+            self.mainWindow.dbConn.commit()
+            self.status_Bar.showMessage("Kaydetme işlemi gerçekleşti",5000)
+
+    def getInfoFonk(self):
+        self.ui.pushButton_update.setEnabled(True)
+        self.ui.pushButton_sil.setEnabled(True)
+        self.cellChangedFonk()
+    def cellChangedFonk(self, rowSec):
+        if rowSec >= 0:
+            self.ui.lineEdit_id.setText(str(self.ui.tableWidget.item(rowSec, 0).text()))
+            self.ui.lineEdit_ad.setText(str(self.ui.tableWidget.item(rowSec, 1).text()))
+            self.ui.lineEdit_soyad.setText(str(self.ui.tableWidget.item(rowSec, 2).text()))
+            self.ui.lineEdit_telno.setText(str(self.ui.tableWidget.item(rowSec, 3).text()))
+            self.ui.lineEdit_adres.setText(str(self.ui.tableWidget.item(rowSec, 4).text()))
+            self.ui.lineEdit_tcno.setText(str(self.ui.tableWidget.item(rowSec, 5).text()))
+            self.ui.lineEdit_dTarihi.setText(str(self.ui.tableWidget.item(rowSec, 6).text()))
+            self.ui.lineEdit_ehliyet.setText(str(self.ui.tableWidget.item(rowSec, 7).text()))
+            self.ui.lineEdit_meslek.setText(str(self.ui.tableWidget.item(rowSec, 8).text()))
+            self.ui.lineEdit_medeni.setText(str(self.ui.tableWidget.item(rowSec, 9).text()))
+            self.ui.lineEdit_egitim.setText(str(self.ui.tableWidget.item(rowSec, 10).text()))
+
+    def mesaj(self,metin):
+        self.message_box=QMessageBox()
+        self.message_box.setText(metin)
+        self.message_box.setStandardButtons(QMessageBox.Yes |QMessageBox.Cancel)
+        self.message_box.setDefaultButton(QMessageBox.Cancel)
+        return(self.message_box.exec())
+
+
+
+
+
+class Bul(QMainWindow):
+    def __init__(self,personWindow):
+        super().__init__(personWindow)
+        self.ui = Ui_Bul()
+        self.ui.setupUi(self)
+        self.setWindowFlags(Qt.WindowTitleHint | Qt.WindowCloseButtonHint)
+        self.personWindow=personWindow
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = anapencere()
+    window.show()
+    sys.exit(app.exec())
+
+
+

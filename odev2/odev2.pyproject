@@ -1,0 +1,11 @@
+{
+    "files": [
+        "anapencere.py",
+        "form.ui",
+        "formBilgi.ui",
+        "formBul.ui",
+        "formKira.ui",
+        "formPerson.ui",
+        "plakasorgu.ui"
+    ]
+}
